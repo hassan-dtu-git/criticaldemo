@@ -16,7 +16,7 @@ def compose_case(request: ComposeCaseRequest) -> AccessIntegrityCaseCard:
     notice_result = request.notice_result
     vision = request.vision_observation
     decision = credential.decision if credential else AccessDecision.unknown
-    rules = [str(reason) for reason in credential.reason_codes] if credential else []
+    rules = [reason.value for reason in credential.reason_codes] if credential else []
     sources: list[SourceRef] = []
     uncertainty: list[str] = []
     checklist = [

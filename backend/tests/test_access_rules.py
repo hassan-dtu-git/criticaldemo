@@ -29,6 +29,7 @@ def test_outside_time_window_denied():
     result = check_credential("SYN-1042", "LAB-A", datetime(2026, 10, 20, 19, 0, tzinfo=timezone.utc))
     assert result.decision == AccessDecision.deny
     assert "outside_time_window" in result.reason_codes
+    assert "credential_expired" not in result.reason_codes
 
 
 def test_revoked_credential_denied():

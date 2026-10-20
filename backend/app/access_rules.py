@@ -62,7 +62,7 @@ def check_credential(credential_ref: str, zone: str, checked_at: datetime | None
     if status == CredentialStatus.revoked:
         reasons.append(CredentialReason.credential_revoked)
         failures = True
-    elif status == CredentialStatus.expired or now > valid_until:
+    elif status == CredentialStatus.expired:
         reasons.append(CredentialReason.credential_expired)
         failures = True
     else:

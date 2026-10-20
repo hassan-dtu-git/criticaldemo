@@ -3,11 +3,11 @@ from __future__ import annotations
 import os
 from uuid import uuid4
 
-from fastapi import FastAPI, Request\nfrom fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .access_rules import check_credential
 from .case_service import compose_case
 from .schemas import (
     APIError,
@@ -21,6 +21,7 @@ from .schemas import (
     VisionObservation,
     VisionStatus,
 )
+from .access_rules import check_credential
 from .tinyfish import search_fetch
 
 app = FastAPI(
@@ -35,7 +36,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=False,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-Request-ID"],
 )
 
 
@@ -45,6 +46,27 @@ async def add_request_id(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Request-ID"] = request.state.request_id
     return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    request_id = getattr(request.state, "request_id", None)
+    payload = APIError(
+        code=ErrorCode.validation_error,
+        message="Request validation failed.",
+        retryable=False,
+        request_id=request_id,
+        details={
+            "issues": [
+                {
+                    "field": ".".join(str(part) for part in item.get("loc", [])),
+                    "issue": item.get("msg", "invalid"),
+                }
+                for item in exc.errors()
+            ]
+        },
+    )
+    return JSONResponse(status_code=422, content=payload.model_dump(mode="json"))
 
 
 @app.exception_handler(Exception)
@@ -62,7 +84,11 @@ async def safe_unhandled_error(request: Request, exc: Exception):
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": app.version, "dependencies": {"tinyfish_configured": bool(os.getenv("TINYFISH_API_KEY", "").strip())}}
+    return {
+        "status": "ok",
+        "version": app.version,
+        "dependencies": {"tinyfish_configured": bool(os.getenv("TINYFISH_API_KEY", "").strip())},
+    }
 
 
 @app.post("/api/credential/check", response_model=CredentialCheck)

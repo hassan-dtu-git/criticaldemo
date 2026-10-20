@@ -107,7 +107,7 @@ async def search_fetch(query: str, location: str = "India") -> NoticeResult:
                 if len(candidates) >= 3:
                     break
 
-            if not candidates:
+            if not candidates and not raw_results:
                 return NoticeResult(
                     status=NoticeStatus.no_match,
                     query=query,
@@ -116,6 +116,8 @@ async def search_fetch(query: str, location: str = "India") -> NoticeResult:
                     freshness_threshold_seconds=threshold,
                     error=None,
                 )
+            if not candidates:
+                raise _ProviderFailure(ErrorCode.provider_invalid_response, "TinyFish Search returned no usable public HTTPS URLs.", False)
 
             fetch_response = await client.post(
                 fetch_url,
